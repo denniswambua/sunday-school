@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sunday School Manager</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --warm-bg: #FFF8F0;
+      --warm-card: #FFFFFF;
+      --warm-primary: #E8734A;
+      --warm-primary-dark: #D4603A;
+      --warm-secondary: #F5C26B;
+      --warm-accent: #5B9EA6;
+      --warm-accent-dark: #4A8A92;
+      --warm-text: #3D3229;
+      --warm-text-light: #7A6E63;
+      --warm-border: #F0E4D7;
+      --warm-success: #6BAF7B;
+      --warm-danger: #D96B6B;
+      --warm-purple: #9B7EC8;
+      --shadow: 0 2px 12px rgba(61, 50, 41, 0.08);
+      --shadow-hover: 0 4px 20px rgba(61, 50, 41, 0.12);
+      --radius: 12px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: var(--warm-bg);
+      color: var(--warm-text);
+      min-height: 100vh;
+      -webkit-text-size-adjust: 100%;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+
+    /* ===== CONFIG MODAL ===== */
+    .config-overlay {
+      position: fixed; inset: 0;
+      background: rgba(61,50,41,0.5);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000;
+    }
+    .config-modal {
+      background: white; border-radius: var(--radius);
+      padding: 2.5rem; max-width: 480px; width: 90%;
+      box-shadow: var(--shadow-hover); text-align: center;
+    }
+    .config-modal h2 { color: var(--warm-primary); margin-bottom: 0.5rem; }
+    .config-modal p { color: var(--warm-text-light); margin-bottom: 1.5rem; font-size: 0.9rem; }
+    .config-modal input {
+      width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--warm-border);
+      border-radius: 8px; font-family: inherit; font-size: 0.95rem;
+      margin-bottom: 1rem; transition: border-color 0.2s;
+    }
+    .config-modal input:focus { outline: none; border-color: var(--warm-primary); }
+    .config-modal label { display: block; text-align: left; font-weight: 600; margin-bottom: 0.3rem; font-size: 0.9rem; }
+
+    /* ===== HEADER ===== */
+    header {
+      background: linear-gradient(135deg, var(--warm-primary), var(--warm-secondary));
+      color: white; padding: 1.2rem 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 2px 16px rgba(232,115,74,0.25);
+    }
+    header .logo { display: flex; align-items: center; gap: 0.75rem; }
+    header .logo-icon { font-size: 2rem; }
+    header h1 { font-size: 1.4rem; font-weight: 800; }
+    header .subtitle { font-size: 0.8rem; opacity: 0.9; font-weight: 400; }
+    .header-actions { display: flex; gap: 0.5rem; align-items: center; }
+    .btn-config {
+      background: rgba(255,255,255,0.2); border: none; color: white;
+      padding: 0.5rem 0.75rem; border-radius: 8px; cursor: pointer;
+      font-size: 0.85rem; font-family: inherit; transition: background 0.2s;
+    }
+    .btn-config:hover { background: rgba(255,255,255,0.35); }
+
+    /* ===== NAV ===== */
+    nav {
+      background: var(--warm-card); border-bottom: 2px solid var(--warm-border);
+      display: flex; overflow-x: auto; padding: 0 1rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      position: sticky; top: 0; z-index: 100;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    nav::-webkit-scrollbar { display: none; }
+    nav button {
+      flex-shrink: 0; background: none; border: none; padding: 1rem 1.25rem;
+      font-family: inherit; font-size: 0.9rem; font-weight: 600;
+      color: var(--warm-text-light); cursor: pointer;
+      border-bottom: 3px solid transparent; transition: all 0.2s;
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    nav button:hover { color: var(--warm-primary); }
+    nav button.active {
+      color: var(--warm-primary); border-bottom-color: var(--warm-primary);
+    }
+
+    /* ===== MAIN ===== */
+    main { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ===== CARDS ===== */
+    .card {
+      background: var(--warm-card); border-radius: var(--radius);
+      padding: 1.5rem; box-shadow: var(--shadow);
+      margin-bottom: 1.25rem; border: 1px solid var(--warm-border);
+    }
+    .card h3 {
+      font-size: 1.1rem; margin-bottom: 1rem;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+
+    /* ===== STATS ROW ===== */
+    .stats-row {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem; margin-bottom: 1.5rem;
+    }
+    .stat-card {
+      background: var(--warm-card); border-radius: var(--radius);
+      padding: 1.25rem; text-align: center;
+      box-shadow: var(--shadow); border: 1px solid var(--warm-border);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+    .stat-icon { font-size: 1.8rem; margin-bottom: 0.4rem; }
+    .stat-number { font-size: 1.8rem; font-weight: 800; color: var(--warm-primary); }
+    .stat-label { font-size: 0.8rem; color: var(--warm-text-light); font-weight: 600; }
+
+    /* ===== FORMS ===== */
+    .form-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+    }
+    .form-group { display: flex; flex-direction: column; }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-group label {
+      font-size: 0.85rem; font-weight: 700; margin-bottom: 0.3rem;
+      color: var(--warm-text-light);
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      padding: 0.7rem 0.9rem; border: 2px solid var(--warm-border);
+      border-radius: 8px; font-family: inherit; font-size: 0.9rem;
+      transition: border-color 0.2s; background: white;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none; border-color: var(--warm-accent);
+    }
+
+    /* ===== BUTTONS ===== */
+    .btn {
+      padding: 0.7rem 1.5rem; border: none; border-radius: 8px;
+      font-family: inherit; font-size: 0.9rem; font-weight: 700;
+      cursor: pointer; transition: all 0.2s; display: inline-flex;
+      align-items: center; gap: 0.4rem;
+    }
+    .btn-primary { background: var(--warm-primary); color: white; }
+    .btn-primary:hover { background: var(--warm-primary-dark); transform: translateY(-1px); }
+    .btn-accent { background: var(--warm-accent); color: white; }
+    .btn-accent:hover { background: var(--warm-accent-dark); }
+    .btn-danger { background: var(--warm-danger); color: white; }
+    .btn-danger:hover { opacity: 0.9; }
+    .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+    .btn-outline {
+      background: transparent; border: 2px solid var(--warm-border);
+      color: var(--warm-text-light);
+    }
+    .btn-outline:hover { border-color: var(--warm-primary); color: var(--warm-primary); }
+
+    .btn-row { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+
+    /* ===== TABLE ===== */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th {
+      text-align: left; padding: 0.7rem 0.8rem;
+      background: var(--warm-bg); color: var(--warm-text-light);
+      font-weight: 700; font-size: 0.8rem; text-transform: uppercase;
+      letter-spacing: 0.03em; border-bottom: 2px solid var(--warm-border);
+    }
+    td {
+      padding: 0.65rem 0.8rem; border-bottom: 1px solid var(--warm-border);
+      vertical-align: middle;
+    }
+    tr:hover td { background: rgba(232,115,74,0.04); }
+    .badge {
+      display: inline-block; padding: 0.15rem 0.6rem; border-radius: 20px;
+      font-size: 0.75rem; font-weight: 700;
+    }
+    .badge-class { background: #EDE7F6; color: var(--warm-purple); }
+    .badge-active { background: #E8F5E9; color: var(--warm-success); }
+    .badge-inactive { background: #FFEBEE; color: var(--warm-danger); }
+
+    /* ===== ATTENDANCE ===== */
+    .attendance-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .attendance-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.6rem 0.9rem; background: var(--warm-bg);
+      border-radius: 8px; border: 1px solid var(--warm-border);
+    }
+    .attendance-item .name { font-weight: 600; }
+    .toggle-btn {
+      width: 50px; height: 28px; border-radius: 14px; border: none;
+      cursor: pointer; position: relative; transition: background 0.3s;
+    }
+    .toggle-btn.absent { background: #ddd; }
+    .toggle-btn.present { background: var(--warm-success); }
+    .toggle-btn::after {
+      content: ''; position: absolute; top: 3px;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: white; transition: left 0.3s; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .toggle-btn.absent::after { left: 3px; }
+    .toggle-btn.present::after { left: 25px; }
+
+    /* ===== BIRTHDAY CARD ===== */
+    .birthday-card {
+      display: flex; align-items: center; gap: 1rem;
+      padding: 0.8rem 1rem; background: var(--warm-bg);
+      border-radius: 10px; border-left: 4px solid var(--warm-secondary);
+      margin-bottom: 0.5rem;
+    }
+    .birthday-card .bday-icon { font-size: 1.5rem; }
+    .birthday-card .bday-name { font-weight: 700; }
+    .birthday-card .bday-date { font-size: 0.85rem; color: var(--warm-text-light); }
+    .birthday-card .bday-type { font-size: 0.75rem; font-weight: 700; color: var(--warm-accent); }
+
+    /* ===== MONTH SELECTOR ===== */
+    .month-selector {
+      display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1rem;
+    }
+    .month-btn {
+      padding: 0.4rem 0.8rem; border: 2px solid var(--warm-border);
+      border-radius: 20px; background: white; font-family: inherit;
+      font-size: 0.8rem; font-weight: 600; cursor: pointer;
+      color: var(--warm-text-light); transition: all 0.2s;
+    }
+    .month-btn.active {
+      background: var(--warm-secondary); border-color: var(--warm-secondary);
+      color: var(--warm-text);
+    }
+
+    /* ===== TOAST ===== */
+    .toast {
+      position: fixed; bottom: 2rem; right: 2rem;
+      background: var(--warm-text); color: white;
+      padding: 0.8rem 1.5rem; border-radius: 10px;
+      font-weight: 600; font-size: 0.9rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      transform: translateY(100px); opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 999;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    /* ===== EMPTY STATE ===== */
+    .empty-state {
+      text-align: center; padding: 3rem 1rem;
+      color: var(--warm-text-light);
+    }
+    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 0.5rem; }
+    .empty-state p { font-size: 0.95rem; }
+
+    /* ===== FILTER BAR ===== */
+    .filter-bar {
+      display: flex; gap: 0.75rem; margin-bottom: 1rem;
+      align-items: center; flex-wrap: wrap;
+    }
+    .filter-bar select, .filter-bar input {
+      padding: 0.5rem 0.8rem; border: 2px solid var(--warm-border);
+      border-radius: 8px; font-family: inherit; font-size: 0.85rem;
+      background: white;
+    }
+
+    /* ===== RESPONSIVE — TABLET (768px) ===== */
+    @media (max-width: 768px) {
+      main { padding: 1rem; }
+      .form-grid { grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+      .stats-row { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+      .card { padding: 1.2rem; }
+      header h1 { font-size: 1.2rem; }
+
+      /* Make tables scroll horizontally */
+      .table-wrap { -webkit-overflow-scrolling: touch; }
+      table { min-width: 500px; }
+
+      /* Month buttons grid nicely on tablet */
+      .month-selector { gap: 0.35rem; }
+      .month-btn { padding: 0.35rem 0.65rem; font-size: 0.75rem; }
+    }
+
+    /* ===== RESPONSIVE — MOBILE (480px) ===== */
+    @media (max-width: 480px) {
+      /* Header: stack vertically */
+      header {
+        padding: 0.9rem 1rem;
+        flex-direction: column; align-items: flex-start; gap: 0.5rem;
+      }
+      header .logo { gap: 0.5rem; }
+      header .logo-icon { font-size: 1.6rem; }
+      header h1 { font-size: 1.05rem; }
+      header .subtitle { font-size: 0.72rem; }
+      .header-actions { align-self: flex-end; margin-top: -2rem; }
+
+      /* Nav: scrollable horizontal strip with smaller buttons */
+      nav { padding: 0 0.5rem; gap: 0; }
+      nav button {
+        padding: 0.7rem 0.75rem; font-size: 0.78rem;
+        white-space: nowrap;
+      }
+      /* Hide text labels on very small screens, keep icons */
+      nav button span.nav-label { display: none; }
+
+      /* Main area */
+      main { padding: 0.75rem; }
+      .card { padding: 1rem; margin-bottom: 1rem; border-radius: 10px; }
+      .card h3 { font-size: 1rem; margin-bottom: 0.75rem; }
+
+      /* Forms: single column */
+      .form-grid { grid-template-columns: 1fr; gap: 0.6rem; }
+      .form-group input, .form-group select, .form-group textarea {
+        padding: 0.65rem 0.75rem; font-size: 0.88rem;
+      }
+      .form-group label { font-size: 0.8rem; }
+
+      /* Buttons: full width on mobile */
+      .btn-row { flex-direction: column; }
+      .btn-row .btn { width: 100%; justify-content: center; }
+      .btn { padding: 0.75rem 1rem; font-size: 0.88rem; }
+
+      /* Stats: 2-column compact grid */
+      .stats-row { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+      .stat-card { padding: 0.9rem 0.5rem; }
+      .stat-icon { font-size: 1.4rem; margin-bottom: 0.2rem; }
+      .stat-number { font-size: 1.4rem; }
+      .stat-label { font-size: 0.72rem; }
+
+      /* Tables: card-style stacked layout on mobile */
+      table { min-width: 420px; font-size: 0.82rem; }
+      th { padding: 0.5rem 0.6rem; font-size: 0.72rem; }
+      td { padding: 0.5rem 0.6rem; }
+
+      /* Filter bar stacks */
+      .filter-bar { flex-direction: column; align-items: stretch; }
+      .filter-bar select, .filter-bar input { width: 100%; }
+
+      /* Attendance toggles: bigger touch targets */
+      .attendance-item { padding: 0.75rem; }
+      .attendance-item .name { font-size: 0.9rem; }
+      .toggle-btn { width: 56px; height: 32px; border-radius: 16px; min-width: 56px; }
+      .toggle-btn::after { width: 26px; height: 26px; }
+      .toggle-btn.present::after { left: 27px; }
+
+      /* Birthday cards */
+      .birthday-card { padding: 0.7rem 0.8rem; gap: 0.7rem; }
+      .birthday-card .bday-icon { font-size: 1.3rem; }
+      .birthday-card .bday-name { font-size: 0.9rem; }
+      .birthday-card .bday-date { font-size: 0.78rem; }
+
+      /* Month selector: wrap into 4-column grid */
+      .month-selector {
+        display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem;
+      }
+      .month-btn {
+        padding: 0.45rem 0.3rem; font-size: 0.73rem; text-align: center;
+      }
+
+      /* Toast at bottom center */
+      .toast {
+        left: 1rem; right: 1rem; bottom: 1rem;
+        text-align: center; font-size: 0.85rem;
+      }
+
+      /* Config modal */
+      .config-modal { padding: 1.5rem; width: 95%; }
+      .config-modal h2 { font-size: 1.2rem; }
+      .config-modal p { font-size: 0.82rem; }
+
+      /* Empty state */
+      .empty-state { padding: 2rem 0.5rem; }
+      .empty-state .empty-icon { font-size: 2.2rem; }
+    }
+
+    /* ===== RESPONSIVE — VERY SMALL (360px) ===== */
+    @media (max-width: 360px) {
+      header h1 { font-size: 0.95rem; }
+      nav button { padding: 0.6rem 0.6rem; font-size: 0.72rem; }
+      .stats-row { grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+      .stat-number { font-size: 1.2rem; }
+      .month-selector { grid-template-columns: repeat(3, 1fr); }
+      table { min-width: 360px; }
+    }
+
+    /* ===== TOUCH-FRIENDLY ENHANCEMENTS ===== */
+    @media (hover: none) and (pointer: coarse) {
+      /* Larger tap targets for touch devices */
+      nav button { min-height: 44px; }
+      .btn { min-height: 44px; }
+      .toggle-btn { min-height: 36px; }
+      .month-btn { min-height: 38px; }
+      .form-group input, .form-group select, .form-group textarea {
+        min-height: 44px; font-size: 16px; /* prevents iOS zoom on focus */
+      }
+      .filter-bar select, .filter-bar input {
+        min-height: 44px; font-size: 16px;
+      }
+      .config-modal input { min-height: 44px; font-size: 16px; }
+    }
+
+    .loading { text-align: center; padding: 2rem; color: var(--warm-text-light); }
+  </style>
+</head>
+<body>
+
+  <!-- CONFIG MODAL -->
+  <div class="config-overlay" id="configOverlay">
+    <div class="config-modal">
+      <div style="font-size:2.5rem; margin-bottom:0.5rem;">⛪</div>
+      <h2>Sunday School Manager</h2>
+      <p>Enter your Supabase credentials to get started. You can find these in your Supabase project dashboard under Settings &gt; API.</p>
+      <label>Supabase URL</label>
+      <input type="text" id="cfgUrl" placeholder="https://your-project.supabase.co">
+      <label>Supabase Anon Key</label>
+      <input type="text" id="cfgKey" placeholder="eyJhbGciOiJIUzI1NiIs...">
+      <div class="btn-row" style="justify-content:center;">
+        <button class="btn btn-primary" onclick="saveConfig()">Connect &amp; Start</button>
+      </div>
+      <p style="margin-top:1rem; font-size:0.78rem; color:#bbb;">Credentials are saved in your browser's localStorage.</p>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <span class="logo-icon">⛪</span>
+      <div>
+        <h1>Sunday School Manager</h1>
+        <div class="subtitle">Nurturing faith, one Sunday at a time</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-config" onclick="showConfig()">⚙️ Settings</button>
+    </div>
+  </header>
+
+  <!-- NAV -->
+  <nav id="mainNav">
+    <button class="active" data-page="dashboard">📊 Dashboard</button>
+    <button data-page="learners">👧 Learners</button>
+    <button data-page="teachers">👩‍🏫 Teachers</button>
+    <button data-page="sessions">📋 Sessions</button>
+    <button data-page="birthdays">🎂 Birthdays</button>
+    <button data-page="agegroups">⚙️ Age Groups</button>
+  </nav>
+
+  <!-- MAIN -->
+  <main>
+
+    <!-- ===== DASHBOARD ===== -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats-row" id="statsRow">
+        <div class="stat-card"><div class="stat-icon">👧</div><div class="stat-number" id="statLearners">-</div><div class="stat-label">Learners</div></div>
+        <div class="stat-card"><div class="stat-icon">👩‍🏫</div><div class="stat-number" id="statTeachers">-</div><div class="stat-label">Teachers</div></div>
+        <div class="stat-card"><div class="stat-icon">📋</div><div class="stat-number" id="statSessions">-</div><div class="stat-label">Sessions</div></div>
+        <div class="stat-card"><div class="stat-icon">🎂</div><div class="stat-number" id="statBirthdays">-</div><div class="stat-label">This Month</div></div>
+      </div>
+      <div class="card">
+        <h3>📅 Recent Sessions</h3>
+        <div class="table-wrap">
+          <table><thead><tr><th>Date</th><th>Age Group</th><th>Teacher</th><th>Topic</th><th>Attendance</th></tr></thead>
+          <tbody id="recentSessionsBody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== LEARNERS ===== -->
+    <div class="page" id="page-learners">
+      <div class="card">
+        <h3>➕ Register New Learner</h3>
+        <form id="learnerForm" class="form-grid">
+          <div class="form-group"><label>First Name *</label><input required id="lFirstName"></div>
+          <div class="form-group"><label>Last Name *</label><input required id="lLastName"></div>
+          <div class="form-group"><label>Date of Birth</label><input type="date" id="lDob"></div>
+          <div class="form-group"><label>Gender</label>
+            <select id="lGender"><option value="">Select...</option><option>Male</option><option>Female</option></select>
+          </div>
+          <div class="form-group"><label>Age Group</label><select id="lClass"></select></div>
+          <div class="form-group"><label>Parent/Guardian Name</label><input id="lParent"></div>
+          <div class="form-group"><label>Parent Phone</label><input id="lPhone" type="tel"></div>
+          <div class="form-group">
+            <div class="btn-row"><button type="submit" class="btn btn-primary">Register Learner</button></div>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h3>📋 All Learners</h3>
+        <div class="filter-bar">
+          <select id="filterLearnerClass" onchange="loadLearners()"><option value="">All Age Groups</option></select>
+          <input type="search" placeholder="Search name..." id="searchLearner" oninput="loadLearners()">
+        </div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Name</th><th>Age Group</th><th>Age</th><th>Parent</th><th>Phone</th><th>Actions</th></tr></thead>
+          <tbody id="learnersBody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TEACHERS ===== -->
+    <div class="page" id="page-teachers">
+      <div class="card">
+        <h3>➕ Register New Teacher</h3>
+        <form id="teacherForm" class="form-grid">
+          <div class="form-group"><label>First Name *</label><input required id="tFirstName"></div>
+          <div class="form-group"><label>Last Name *</label><input required id="tLastName"></div>
+          <div class="form-group"><label>Phone</label><input id="tPhone" type="tel"></div>
+          <div class="form-group"><label>Email</label><input id="tEmail" type="email"></div>
+          <div class="form-group"><label>Assigned Age Group</label><select id="tClass"></select></div>
+          <div class="form-group"><label>Date of Birth</label><input type="date" id="tDob"></div>
+          <div class="form-group">
+            <div class="btn-row"><button type="submit" class="btn btn-primary">Register Teacher</button></div>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h3>📋 All Teachers</h3>
+        <div class="table-wrap">
+          <table><thead><tr><th>Name</th><th>Age Group</th><th>Phone</th><th>Email</th><th>Actions</th></tr></thead>
+          <tbody id="teachersBody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SESSIONS ===== -->
+    <div class="page" id="page-sessions">
+      <div class="card">
+        <h3>➕ Create New Session</h3>
+        <form id="sessionForm" class="form-grid">
+          <div class="form-group"><label>Date *</label><input type="date" required id="sDate"></div>
+          <div class="form-group"><label>Age Group *</label><select required id="sClass" onchange="loadSessionTeachers()"></select></div>
+          <div class="form-group"><label>Teacher *</label><select required id="sTeacher"></select></div>
+          <div class="form-group"><label>Topic</label><input id="sTopic"></div>
+          <div class="form-group full"><label>Notes</label><textarea id="sNotes" rows="2"></textarea></div>
+          <div class="form-group">
+            <div class="btn-row"><button type="submit" class="btn btn-primary">Create Session</button></div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Attendance area -->
+      <div class="card" id="attendanceCard" style="display:none;">
+        <h3>✅ Mark Attendance — <span id="attendanceTitle"></span></h3>
+        <div class="attendance-list" id="attendanceList"></div>
+        <div class="btn-row">
+          <button class="btn btn-accent" onclick="saveAttendance()">Save Attendance</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>📋 All Sessions</h3>
+        <div class="table-wrap">
+          <table><thead><tr><th>Date</th><th>Age Group</th><th>Teacher</th><th>Topic</th><th>Present</th><th>Actions</th></tr></thead>
+          <tbody id="sessionsBody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== BIRTHDAYS ===== -->
+    <div class="page" id="page-birthdays">
+      <div class="card">
+        <h3>🎂 Birthday Calendar</h3>
+        <div class="month-selector" id="monthSelector"></div>
+        <div id="birthdayList"></div>
+      </div>
+    </div>
+
+    <!-- ===== AGE GROUPS ===== -->
+    <div class="page" id="page-agegroups">
+      <div class="card">
+        <h3>➕ Add New Age Group</h3>
+        <form id="ageGroupForm" class="form-grid">
+          <div class="form-group"><label>Group Name *</label><input required id="agName" placeholder="e.g. Beginners"></div>
+          <div class="form-group"><label>Age Range *</label><input required id="agRange" placeholder="e.g. 4-6 years"></div>
+          <div class="form-group"><label>Sort Order</label><input type="number" id="agSort" placeholder="1" min="0"></div>
+          <div class="form-group">
+            <div class="btn-row">
+              <button type="submit" class="btn btn-primary" id="agSubmitBtn">Add Age Group</button>
+              <button type="button" class="btn btn-outline" id="agCancelBtn" style="display:none;" onclick="cancelEditAgeGroup()">Cancel</button>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h3>📋 All Age Groups</h3>
+        <p style="font-size:0.85rem; color:var(--warm-text-light); margin-bottom:1rem;">
+          Manage the age groups used across learners, teachers, and sessions. Drag to reorder or use the sort number.
+        </p>
+        <div class="table-wrap">
+          <table><thead><tr><th>Order</th><th>Name</th><th>Age Range</th><th>Learners</th><th>Teachers</th><th>Actions</th></tr></thead>
+          <tbody id="ageGroupsBody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ========================
+    // STATE
+    // ========================
+    let db = null;
+    let classes = [];
+    let currentAttendanceSessionId = null;
+    let attendanceData = [];
+
+    // ========================
+    // CONFIG
+    // ========================
+    function loadConfig() {
+      const url = localStorage.getItem('sb_url');
+      const key = localStorage.getItem('sb_key');
+      if (url && key) {
+        initSupabase(url, key);
+        document.getElementById('configOverlay').style.display = 'none';
+      }
+    }
+
+    function saveConfig() {
+      const url = document.getElementById('cfgUrl').value.trim();
+      const key = document.getElementById('cfgKey').value.trim();
+      if (!url || !key) { toast('Please fill in both fields', true); return; }
+      if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
+        toast('Supabase library failed to load. Check your internet connection and refresh.', true);
+        return;
+      }
+      localStorage.setItem('sb_url', url);
+      localStorage.setItem('sb_key', key);
+      initSupabase(url, key);
+      document.getElementById('configOverlay').style.display = 'none';
+    }
+
+    function showConfig() {
+      document.getElementById('cfgUrl').value = localStorage.getItem('sb_url') || '';
+      document.getElementById('cfgKey').value = localStorage.getItem('sb_key') || '';
+      document.getElementById('configOverlay').style.display = 'flex';
+    }
+
+    async function initSupabase(url, key) {
+      db = window.supabase.createClient(url, key);
+      await loadClasses();
+      populateClassDropdowns();
+      loadDashboard();
+      loadLearners();
+      loadTeachers();
+      loadSessions();
+      initBirthdays();
+      loadAgeGroups();
+      document.getElementById('sDate').value = new Date().toISOString().split('T')[0];
+    }
+
+    // ========================
+    // NAV
+    // ========================
+    document.querySelectorAll('#mainNav button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#mainNav button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('page-' + btn.dataset.page).classList.add('active');
+      });
+    });
+
+    // ========================
+    // CLASSES
+    // ========================
+    async function loadClasses() {
+      const { data } = await db.from('classes').select('*').order('sort_order');
+      classes = data || [];
+    }
+
+    function populateClassDropdowns() {
+      const selectors = ['lClass', 'tClass', 'sClass', 'filterLearnerClass'];
+      selectors.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const hasAll = id === 'filterLearnerClass';
+        el.innerHTML = hasAll ? '<option value="">All Age Groups</option>' : '<option value="">Select age group...</option>';
+        classes.forEach(c => {
+          el.innerHTML += `<option value="${c.id}">${c.name} (${c.age_range})</option>`;
+        });
+      });
+    }
+
+    function className(id) {
+      const c = classes.find(cl => cl.id === id);
+      return c ? c.name : '-';
+    }
+
+    // ========================
+    // DASHBOARD
+    // ========================
+    async function loadDashboard() {
+      const [l, t, s] = await Promise.all([
+        db.from('learners').select('id', { count: 'exact', head: true }).eq('is_active', true),
+        db.from('teachers').select('id', { count: 'exact', head: true }).eq('is_active', true),
+        db.from('sessions').select('id', { count: 'exact', head: true }),
+      ]);
+      document.getElementById('statLearners').textContent = l.count || 0;
+      document.getElementById('statTeachers').textContent = t.count || 0;
+      document.getElementById('statSessions').textContent = s.count || 0;
+
+      // Birthday count this month
+      const now = new Date();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const { data: bl } = await db.from('learners').select('date_of_birth').not('date_of_birth', 'is', null);
+      const { data: bt } = await db.from('teachers').select('date_of_birth').not('date_of_birth', 'is', null);
+      const all = [...(bl||[]), ...(bt||[])];
+      const bdayCount = all.filter(p => p.date_of_birth && p.date_of_birth.split('-')[1] === month).length;
+      document.getElementById('statBirthdays').textContent = bdayCount;
+
+      // Recent sessions
+      const { data: recent } = await db
+        .from('sessions')
+        .select('*, teachers(first_name, last_name), classes(name)')
+        .order('session_date', { ascending: false })
+        .limit(5);
+
+      const tbody = document.getElementById('recentSessionsBody');
+      if (!recent || recent.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--warm-text-light); padding:2rem;">No sessions yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = '';
+      for (const s of recent) {
+        const { count } = await db.from('attendance').select('id', { count: 'exact', head: true }).eq('session_id', s.id).eq('present', true);
+        tbody.innerHTML += `<tr>
+          <td>${formatDate(s.session_date)}</td>
+          <td><span class="badge badge-class">${s.classes?.name || '-'}</span></td>
+          <td>${s.teachers ? s.teachers.first_name + ' ' + s.teachers.last_name : '-'}</td>
+          <td>${s.topic || '-'}</td>
+          <td>${count || 0} present</td>
+        </tr>`;
+      }
+    }
+
+    // ========================
+    // LEARNERS
+    // ========================
+    document.getElementById('learnerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const obj = {
+        first_name: val('lFirstName'),
+        last_name: val('lLastName'),
+        date_of_birth: val('lDob') || null,
+        gender: val('lGender') || null,
+        class_id: val('lClass') || null,
+        parent_name: val('lParent') || null,
+        parent_phone: val('lPhone') || null,
+      };
+      const { error } = await db.from('learners').insert(obj);
+      if (error) { toast('Error: ' + error.message, true); return; }
+      toast('Learner registered!');
+      e.target.reset();
+      loadLearners();
+      loadDashboard();
+    });
+
+    async function loadLearners() {
+      let query = db.from('learners').select('*, classes(name)').eq('is_active', true).order('first_name');
+      const classFilter = val('filterLearnerClass');
+      if (classFilter) query = query.eq('class_id', classFilter);
+      const search = val('searchLearner');
+      if (search) query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%`);
+
+      const { data } = await query;
+      const tbody = document.getElementById('learnersBody');
+      if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--warm-text-light);padding:2rem;">No learners found</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(l => `<tr>
+        <td><strong>${l.first_name} ${l.last_name}</strong></td>
+        <td><span class="badge badge-class">${l.classes?.name || '-'}</span></td>
+        <td>${calcAge(l.date_of_birth)}</td>
+        <td>${l.parent_name || '-'}</td>
+        <td>${l.parent_phone || '-'}</td>
+        <td><button class="btn btn-sm btn-danger" onclick="deleteLearner('${l.id}')">Remove</button></td>
+      </tr>`).join('');
+    }
+
+    async function deleteLearner(id) {
+      if (!confirm('Remove this learner?')) return;
+      await db.from('learners').update({ is_active: false }).eq('id', id);
+      toast('Learner removed');
+      loadLearners();
+      loadDashboard();
+    }
+
+    // ========================
+    // TEACHERS
+    // ========================
+    document.getElementById('teacherForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const obj = {
+        first_name: val('tFirstName'),
+        last_name: val('tLastName'),
+        phone: val('tPhone') || null,
+        email: val('tEmail') || null,
+        class_id: val('tClass') || null,
+        date_of_birth: val('tDob') || null,
+      };
+      const { error } = await db.from('teachers').insert(obj);
+      if (error) { toast('Error: ' + error.message, true); return; }
+      toast('Teacher registered!');
+      e.target.reset();
+      loadTeachers();
+      loadDashboard();
+    });
+
+    async function loadTeachers() {
+      const { data } = await db.from('teachers').select('*, classes(name)').eq('is_active', true).order('first_name');
+      const tbody = document.getElementById('teachersBody');
+      if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--warm-text-light);padding:2rem;">No teachers found</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(t => `<tr>
+        <td><strong>${t.first_name} ${t.last_name}</strong></td>
+        <td><span class="badge badge-class">${t.classes?.name || '-'}</span></td>
+        <td>${t.phone || '-'}</td>
+        <td>${t.email || '-'}</td>
+        <td><button class="btn btn-sm btn-danger" onclick="deleteTeacher('${t.id}')">Remove</button></td>
+      </tr>`).join('');
+    }
+
+    async function deleteTeacher(id) {
+      if (!confirm('Remove this teacher?')) return;
+      await db.from('teachers').update({ is_active: false }).eq('id', id);
+      toast('Teacher removed');
+      loadTeachers();
+      loadDashboard();
+    }
+
+    // ========================
+    // SESSIONS
+    // ========================
+    async function loadSessionTeachers() {
+      const classId = val('sClass');
+      const sel = document.getElementById('sTeacher');
+      sel.innerHTML = '<option value="">Select teacher...</option>';
+      if (!classId) return;
+      const { data } = await db.from('teachers').select('*').eq('class_id', classId).eq('is_active', true);
+      // Also get teachers with no class assigned
+      const { data: allT } = await db.from('teachers').select('*').is('class_id', null).eq('is_active', true);
+      const merged = [...(data||[]), ...(allT||[])];
+      merged.forEach(t => {
+        sel.innerHTML += `<option value="${t.id}">${t.first_name} ${t.last_name}</option>`;
+      });
+    }
+
+    document.getElementById('sessionForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const obj = {
+        session_date: val('sDate'),
+        class_id: val('sClass'),
+        teacher_id: val('sTeacher'),
+        topic: val('sTopic') || null,
+        notes: val('sNotes') || null,
+      };
+      const { data, error } = await db.from('sessions').insert(obj).select();
+      if (error) { toast('Error: ' + error.message, true); return; }
+      toast('Session created!');
+
+      // Auto-create attendance records for class learners
+      const { data: learners } = await db.from('learners').select('id').eq('class_id', obj.class_id).eq('is_active', true);
+      if (learners && learners.length > 0) {
+        const records = learners.map(l => ({ session_id: data[0].id, learner_id: l.id, present: false }));
+        await db.from('attendance').insert(records);
+      }
+
+      e.target.reset();
+      document.getElementById('sDate').value = new Date().toISOString().split('T')[0];
+      loadSessions();
+      loadDashboard();
+      openAttendance(data[0].id);
+    });
+
+    async function loadSessions() {
+      const { data } = await db
+        .from('sessions')
+        .select('*, teachers(first_name, last_name), classes(name)')
+        .order('session_date', { ascending: false });
+
+      const tbody = document.getElementById('sessionsBody');
+      if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--warm-text-light);padding:2rem;">No sessions yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = '';
+      for (const s of data) {
+        const { count } = await db.from('attendance').select('id', { count: 'exact', head: true }).eq('session_id', s.id).eq('present', true);
+        const { count: total } = await db.from('attendance').select('id', { count: 'exact', head: true }).eq('session_id', s.id);
+        tbody.innerHTML += `<tr>
+          <td>${formatDate(s.session_date)}</td>
+          <td><span class="badge badge-class">${s.classes?.name || '-'}</span></td>
+          <td>${s.teachers ? s.teachers.first_name + ' ' + s.teachers.last_name : '-'}</td>
+          <td>${s.topic || '-'}</td>
+          <td>${count || 0}/${total || 0}</td>
+          <td>
+            <button class="btn btn-sm btn-accent" onclick="openAttendance('${s.id}')">Attendance</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteSession('${s.id}')">Delete</button>
+          </td>
+        </tr>`;
+      }
+    }
+
+    async function openAttendance(sessionId) {
+      currentAttendanceSessionId = sessionId;
+      const card = document.getElementById('attendanceCard');
+      card.style.display = 'block';
+
+      const { data: session } = await db.from('sessions').select('*, classes(name)').eq('id', sessionId).single();
+      document.getElementById('attendanceTitle').textContent = `${session.classes?.name || ''} — ${formatDate(session.session_date)}`;
+
+      const { data: records } = await db
+        .from('attendance')
+        .select('*, learners(first_name, last_name)')
+        .eq('session_id', sessionId);
+
+      attendanceData = records || [];
+      renderAttendance();
+      card.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function renderAttendance() {
+      const list = document.getElementById('attendanceList');
+      if (attendanceData.length === 0) {
+        list.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><p>No learners in this class</p></div>';
+        return;
+      }
+      list.innerHTML = attendanceData.map((a, i) => `
+        <div class="attendance-item">
+          <span class="name">${a.learners?.first_name || ''} ${a.learners?.last_name || ''}</span>
+          <button class="toggle-btn ${a.present ? 'present' : 'absent'}" onclick="toggleAttendance(${i})"></button>
+        </div>
+      `).join('');
+    }
+
+    function toggleAttendance(index) {
+      attendanceData[index].present = !attendanceData[index].present;
+      renderAttendance();
+    }
+
+    async function saveAttendance() {
+      for (const a of attendanceData) {
+        await db.from('attendance').update({ present: a.present }).eq('id', a.id);
+      }
+      toast('Attendance saved!');
+      loadSessions();
+      loadDashboard();
+    }
+
+    async function deleteSession(id) {
+      if (!confirm('Delete this session and its attendance records?')) return;
+      await db.from('sessions').delete().eq('id', id);
+      toast('Session deleted');
+      document.getElementById('attendanceCard').style.display = 'none';
+      loadSessions();
+      loadDashboard();
+    }
+
+    // ========================
+    // BIRTHDAYS
+    // ========================
+    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    let selectedMonth = new Date().getMonth();
+
+    function initBirthdays() {
+      const container = document.getElementById('monthSelector');
+      container.innerHTML = MONTHS.map((m, i) =>
+        `<button class="month-btn ${i === selectedMonth ? 'active' : ''}" onclick="selectMonth(${i})">${m.slice(0,3)}</button>`
+      ).join('');
+      loadBirthdays();
+    }
+
+    function selectMonth(i) {
+      selectedMonth = i;
+      document.querySelectorAll('.month-btn').forEach((btn, idx) => {
+        btn.classList.toggle('active', idx === i);
+      });
+      loadBirthdays();
+    }
+
+    async function loadBirthdays() {
+      const month = String(selectedMonth + 1).padStart(2, '0');
+      const { data: learners } = await db.from('learners').select('*, classes(name)').eq('is_active', true).not('date_of_birth', 'is', null);
+      const { data: teachers } = await db.from('teachers').select('*, classes(name)').eq('is_active', true).not('date_of_birth', 'is', null);
+
+      const all = [];
+      (learners || []).forEach(l => {
+        if (l.date_of_birth.split('-')[1] === month) {
+          all.push({ ...l, type: 'Learner' });
+        }
+      });
+      (teachers || []).forEach(t => {
+        if (t.date_of_birth.split('-')[1] === month) {
+          all.push({ ...t, type: 'Teacher' });
+        }
+      });
+
+      // Sort by day of month
+      all.sort((a, b) => parseInt(a.date_of_birth.split('-')[2]) - parseInt(b.date_of_birth.split('-')[2]));
+
+      const container = document.getElementById('birthdayList');
+      if (all.length === 0) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">🎂</div><p>No birthdays in ${MONTHS[selectedMonth]}</p></div>`;
+        return;
+      }
+      container.innerHTML = all.map(p => {
+        const day = parseInt(p.date_of_birth.split('-')[2]);
+        const age = calcAge(p.date_of_birth);
+        return `<div class="birthday-card">
+          <div class="bday-icon">🎁</div>
+          <div>
+            <div class="bday-name">${p.first_name} ${p.last_name}</div>
+            <div class="bday-date">${MONTHS[selectedMonth]} ${day} · ${age} · ${p.classes?.name || 'No class'}</div>
+            <div class="bday-type">${p.type}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // ========================
+    // AGE GROUPS MANAGEMENT
+    // ========================
+    let editingAgeGroupId = null;
+
+    document.getElementById('ageGroupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const obj = {
+        name: val('agName'),
+        age_range: val('agRange'),
+        sort_order: parseInt(val('agSort')) || 0,
+      };
+
+      if (editingAgeGroupId) {
+        // Update existing
+        const { error } = await db.from('classes').update(obj).eq('id', editingAgeGroupId);
+        if (error) { toast('Error: ' + error.message, true); return; }
+        toast('Age group updated!');
+        cancelEditAgeGroup();
+      } else {
+        // Insert new
+        const { error } = await db.from('classes').insert(obj);
+        if (error) { toast('Error: ' + error.message, true); return; }
+        toast('Age group added!');
+        e.target.reset();
+      }
+
+      await loadClasses();
+      populateClassDropdowns();
+      loadAgeGroups();
+      loadDashboard();
+    });
+
+    async function loadAgeGroups() {
+      // Reuse the already-loaded classes array instead of a separate query
+      const tbody = document.getElementById('ageGroupsBody');
+      if (!tbody) return;
+
+      if (!classes || classes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--warm-text-light);padding:2rem;">No age groups defined yet</td></tr>';
+        return;
+      }
+
+      // Get counts for each age group
+      const rows = [];
+      for (const ag of classes) {
+        let learnerCount = 0, teacherCount = 0;
+        try {
+          const lResult = await db.from('learners').select('id', { count: 'exact', head: true }).eq('class_id', ag.id).eq('is_active', true);
+          learnerCount = lResult.count || 0;
+          const tResult = await db.from('teachers').select('id', { count: 'exact', head: true }).eq('class_id', ag.id).eq('is_active', true);
+          teacherCount = tResult.count || 0;
+        } catch(e) { /* counts default to 0 */ }
+        rows.push({ ...ag, learnerCount, teacherCount });
+      }
+
+      tbody.innerHTML = rows.map(ag => `<tr>
+        <td style="text-align:center; font-weight:700; color:var(--warm-text-light);">${ag.sort_order}</td>
+        <td><strong>${ag.name}</strong></td>
+        <td>${ag.age_range || '-'}</td>
+        <td>${ag.learnerCount}</td>
+        <td>${ag.teacherCount}</td>
+        <td>
+          <button class="btn btn-sm btn-accent" onclick="editAgeGroup('${ag.id}')">Edit</button>
+          ${ag.learnerCount === 0 && ag.teacherCount === 0
+            ? `<button class="btn btn-sm btn-danger" onclick="deleteAgeGroup('${ag.id}', '${ag.name}')">Delete</button>`
+            : ''}
+        </td>
+      </tr>`).join('');
+    }
+
+    function editAgeGroup(id) {
+      const ag = classes.find(c => c.id === id);
+      if (!ag) return;
+      editingAgeGroupId = id;
+      document.getElementById('agName').value = ag.name;
+      document.getElementById('agRange').value = ag.age_range || '';
+      document.getElementById('agSort').value = ag.sort_order || 0;
+      document.getElementById('agSubmitBtn').textContent = 'Update Age Group';
+      document.getElementById('agCancelBtn').style.display = 'inline-flex';
+      // Scroll to form
+      document.getElementById('ageGroupForm').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function cancelEditAgeGroup() {
+      editingAgeGroupId = null;
+      document.getElementById('ageGroupForm').reset();
+      document.getElementById('agSubmitBtn').textContent = 'Add Age Group';
+      document.getElementById('agCancelBtn').style.display = 'none';
+    }
+
+    async function deleteAgeGroup(id, name) {
+      if (!confirm('Delete the "' + name + '" age group? This cannot be undone.')) return;
+      // Check for sessions using this group
+      const { count: sessionCount } = await db.from('sessions').select('id', { count: 'exact', head: true }).eq('class_id', id);
+      if (sessionCount > 0) {
+        toast('Cannot delete — ' + sessionCount + ' session(s) use this age group.', true);
+        return;
+      }
+      const { error } = await db.from('classes').delete().eq('id', id);
+      if (error) { toast('Error: ' + error.message, true); return; }
+      toast('Age group deleted');
+      await loadClasses();
+      populateClassDropdowns();
+      loadAgeGroups();
+    }
+
+    // ========================
+    // UTILS
+    // ========================
+    function val(id) { return document.getElementById(id).value.trim(); }
+
+    function calcAge(dob) {
+      if (!dob) return '-';
+      const today = new Date();
+      const b = new Date(dob);
+      let age = today.getFullYear() - b.getFullYear();
+      const m = today.getMonth() - b.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < b.getDate())) age--;
+      return age + ' yrs';
+    }
+
+    function formatDate(d) {
+      if (!d) return '-';
+      const dt = new Date(d + 'T00:00:00');
+      return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function toast(msg, isError) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.background = isError ? 'var(--warm-danger)' : 'var(--warm-text)';
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    // ========================
+    // INIT
+    // ========================
+    document.addEventListener('DOMContentLoaded', function() {
+      loadConfig();
+    });
+  </script>
+</body>
+</html>
