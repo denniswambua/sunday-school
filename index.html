@@ -163,6 +163,8 @@
     .btn-primary:hover { background: var(--warm-primary-dark); transform: translateY(-1px); }
     .btn-accent { background: var(--warm-accent); color: white; }
     .btn-accent:hover { background: var(--warm-accent-dark); }
+    .btn-secondary { background: var(--warm-border); color: var(--warm-text); }
+    .btn-secondary:hover { background: #e0d4c7; }
     .btn-danger { background: var(--warm-danger); color: white; }
     .btn-danger:hover { opacity: 0.9; }
     .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
@@ -217,6 +219,30 @@
     }
     .toggle-btn.absent::after { left: 3px; }
     .toggle-btn.present::after { left: 25px; }
+
+    /* ===== SESSION DETAIL ===== */
+    .detail-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;
+    }
+    .detail-header h3 { margin-bottom: 0; }
+    .detail-header .btn-row { margin-top: 0; }
+    .detail-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+    }
+    .detail-field { display: flex; flex-direction: column; }
+    .detail-field.full { grid-column: 1 / -1; }
+    .detail-label {
+      font-size: 0.8rem; font-weight: 700; color: var(--warm-text-light);
+      text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.2rem;
+    }
+    .detail-value {
+      font-size: 1rem; font-weight: 600; color: var(--warm-text);
+      padding: 0.5rem 0; min-height: 1.5rem;
+    }
+    @media (max-width: 600px) {
+      .detail-grid { grid-template-columns: 1fr; }
+    }
 
     /* ===== BIRTHDAY CARD ===== */
     .birthday-card {
@@ -481,8 +507,9 @@
     <!-- ===== LEARNERS ===== -->
     <div class="page" id="page-learners">
       <div class="card">
-        <h3>➕ Register New Learner</h3>
+        <h3 id="learnerFormTitle">➕ Register New Learner</h3>
         <form id="learnerForm" class="form-grid">
+          <input type="hidden" id="lEditId">
           <div class="form-group"><label>First Name *</label><input required id="lFirstName"></div>
           <div class="form-group"><label>Last Name *</label><input required id="lLastName"></div>
           <div class="form-group"><label>Date of Birth</label><input type="date" id="lDob"></div>
@@ -493,7 +520,10 @@
           <div class="form-group"><label>Parent/Guardian Name</label><input id="lParent"></div>
           <div class="form-group"><label>Parent Phone</label><input id="lPhone" type="tel"></div>
           <div class="form-group">
-            <div class="btn-row"><button type="submit" class="btn btn-primary">Register Learner</button></div>
+            <div class="btn-row">
+              <button type="submit" class="btn btn-primary" id="learnerSubmitBtn">Register Learner</button>
+              <button type="button" class="btn btn-secondary" id="learnerCancelBtn" style="display:none;" onclick="cancelEditLearner()">Cancel</button>
+            </div>
           </div>
         </form>
       </div>
@@ -513,8 +543,9 @@
     <!-- ===== TEACHERS ===== -->
     <div class="page" id="page-teachers">
       <div class="card">
-        <h3>➕ Register New Teacher</h3>
+        <h3 id="teacherFormTitle">➕ Register New Teacher</h3>
         <form id="teacherForm" class="form-grid">
+          <input type="hidden" id="tEditId">
           <div class="form-group"><label>First Name *</label><input required id="tFirstName"></div>
           <div class="form-group"><label>Last Name *</label><input required id="tLastName"></div>
           <div class="form-group"><label>Phone</label><input id="tPhone" type="tel"></div>
@@ -522,7 +553,10 @@
           <div class="form-group"><label>Assigned Age Group</label><select id="tClass"></select></div>
           <div class="form-group"><label>Date of Birth</label><input type="date" id="tDob"></div>
           <div class="form-group">
-            <div class="btn-row"><button type="submit" class="btn btn-primary">Register Teacher</button></div>
+            <div class="btn-row">
+              <button type="submit" class="btn btn-primary" id="teacherSubmitBtn">Register Teacher</button>
+              <button type="button" class="btn btn-secondary" id="teacherCancelBtn" style="display:none;" onclick="cancelEditTeacher()">Cancel</button>
+            </div>
           </div>
         </form>
       </div>
@@ -565,6 +599,63 @@
         <div class="table-wrap">
           <table><thead><tr><th>Date</th><th>Age Group</th><th>Teacher</th><th>Topic</th><th>Present</th><th>Actions</th></tr></thead>
           <tbody id="sessionsBody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SESSION DETAIL ===== -->
+    <div class="page" id="page-session-detail">
+      <div class="btn-row" style="margin-bottom:1rem;">
+        <button class="btn btn-outline" onclick="backToSessions()">← Back to Sessions</button>
+      </div>
+
+      <!-- Session Info Card -->
+      <div class="card" id="sessionDetailCard">
+        <div class="detail-header">
+          <h3>📋 Session Details</h3>
+          <div class="btn-row" style="margin-top:0;">
+            <button class="btn btn-sm btn-accent" id="sessionEditBtn" onclick="toggleEditSession()">Edit</button>
+            <button class="btn btn-sm btn-danger" id="sessionDetailDeleteBtn" onclick="deleteSessionFromDetail()">Delete</button>
+          </div>
+        </div>
+
+        <!-- Read-only view -->
+        <div id="sessionDetailView">
+          <div class="detail-grid">
+            <div class="detail-field"><span class="detail-label">Date</span><span class="detail-value" id="sdDate"></span></div>
+            <div class="detail-field"><span class="detail-label">Age Group</span><span class="detail-value" id="sdClass"></span></div>
+            <div class="detail-field"><span class="detail-label">Teacher</span><span class="detail-value" id="sdTeacher"></span></div>
+            <div class="detail-field"><span class="detail-label">Topic</span><span class="detail-value" id="sdTopic"></span></div>
+            <div class="detail-field full"><span class="detail-label">Notes</span><span class="detail-value" id="sdNotes"></span></div>
+          </div>
+        </div>
+
+        <!-- Edit form (hidden by default) -->
+        <form id="sessionEditForm" class="form-grid" style="display:none;">
+          <input type="hidden" id="sdEditId">
+          <div class="form-group"><label>Date *</label><input type="date" required id="sdEditDate"></div>
+          <div class="form-group"><label>Age Group *</label><select required id="sdEditClass" onchange="loadDetailTeachers()"></select></div>
+          <div class="form-group"><label>Teacher *</label><select required id="sdEditTeacher"></select></div>
+          <div class="form-group"><label>Topic</label><input id="sdEditTopic"></div>
+          <div class="form-group full"><label>Notes</label><textarea id="sdEditNotes" rows="3"></textarea></div>
+          <div class="form-group">
+            <div class="btn-row">
+              <button type="submit" class="btn btn-primary">Save Changes</button>
+              <button type="button" class="btn btn-secondary" onclick="toggleEditSession()">Cancel</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Attendance Card -->
+      <div class="card">
+        <div class="detail-header">
+          <h3>✅ Attendance</h3>
+          <span class="badge badge-class" id="sdAttendanceSummary"></span>
+        </div>
+        <div class="attendance-list" id="sdAttendanceList"></div>
+        <div class="btn-row">
+          <button class="btn btn-accent" onclick="saveDetailAttendance()">Save Attendance</button>
         </div>
       </div>
     </div>
@@ -755,6 +846,7 @@
     // ========================
     document.getElementById('learnerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const editId = val('lEditId');
       const obj = {
         first_name: val('lFirstName'),
         last_name: val('lLastName'),
@@ -764,13 +856,43 @@
         parent_name: val('lParent') || null,
         parent_phone: val('lPhone') || null,
       };
-      const { error } = await db.from('learners').insert(obj);
+      let error;
+      if (editId) {
+        ({ error } = await db.from('learners').update(obj).eq('id', editId));
+      } else {
+        ({ error } = await db.from('learners').insert(obj));
+      }
       if (error) { toast('Error: ' + error.message, true); return; }
-      toast('Learner registered!');
-      e.target.reset();
+      toast(editId ? 'Learner updated!' : 'Learner registered!');
+      cancelEditLearner();
       loadLearners();
       loadDashboard();
     });
+
+    async function editLearner(id) {
+      const { data, error } = await db.from('learners').select('*').eq('id', id).single();
+      if (error || !data) { toast('Could not load learner', true); return; }
+      document.getElementById('lEditId').value = data.id;
+      document.getElementById('lFirstName').value = data.first_name || '';
+      document.getElementById('lLastName').value = data.last_name || '';
+      document.getElementById('lDob').value = data.date_of_birth || '';
+      document.getElementById('lGender').value = data.gender || '';
+      document.getElementById('lClass').value = data.class_id || '';
+      document.getElementById('lParent').value = data.parent_name || '';
+      document.getElementById('lPhone').value = data.parent_phone || '';
+      document.getElementById('learnerFormTitle').textContent = '✏️ Edit Learner';
+      document.getElementById('learnerSubmitBtn').textContent = 'Update Learner';
+      document.getElementById('learnerCancelBtn').style.display = '';
+      document.getElementById('learnerForm').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function cancelEditLearner() {
+      document.getElementById('lEditId').value = '';
+      document.getElementById('learnerForm').reset();
+      document.getElementById('learnerFormTitle').textContent = '➕ Register New Learner';
+      document.getElementById('learnerSubmitBtn').textContent = 'Register Learner';
+      document.getElementById('learnerCancelBtn').style.display = 'none';
+    }
 
     async function loadLearners() {
       let query = db.from('learners').select('*, classes(name)').eq('is_active', true).order('first_name');
@@ -791,7 +913,7 @@
         <td>${calcAge(l.date_of_birth)}</td>
         <td>${l.parent_name || '-'}</td>
         <td>${l.parent_phone || '-'}</td>
-        <td><button class="btn btn-sm btn-danger" onclick="deleteLearner('${l.id}')">Remove</button></td>
+        <td><button class="btn btn-sm btn-accent" onclick="editLearner('${l.id}')">Edit</button> <button class="btn btn-sm btn-danger" onclick="deleteLearner('${l.id}')">Remove</button></td>
       </tr>`).join('');
     }
 
@@ -808,6 +930,7 @@
     // ========================
     document.getElementById('teacherForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const editId = val('tEditId');
       const obj = {
         first_name: val('tFirstName'),
         last_name: val('tLastName'),
@@ -816,13 +939,42 @@
         class_id: val('tClass') || null,
         date_of_birth: val('tDob') || null,
       };
-      const { error } = await db.from('teachers').insert(obj);
+      let error;
+      if (editId) {
+        ({ error } = await db.from('teachers').update(obj).eq('id', editId));
+      } else {
+        ({ error } = await db.from('teachers').insert(obj));
+      }
       if (error) { toast('Error: ' + error.message, true); return; }
-      toast('Teacher registered!');
-      e.target.reset();
+      toast(editId ? 'Teacher updated!' : 'Teacher registered!');
+      cancelEditTeacher();
       loadTeachers();
       loadDashboard();
     });
+
+    async function editTeacher(id) {
+      const { data, error } = await db.from('teachers').select('*').eq('id', id).single();
+      if (error || !data) { toast('Could not load teacher', true); return; }
+      document.getElementById('tEditId').value = data.id;
+      document.getElementById('tFirstName').value = data.first_name || '';
+      document.getElementById('tLastName').value = data.last_name || '';
+      document.getElementById('tPhone').value = data.phone || '';
+      document.getElementById('tEmail').value = data.email || '';
+      document.getElementById('tClass').value = data.class_id || '';
+      document.getElementById('tDob').value = data.date_of_birth || '';
+      document.getElementById('teacherFormTitle').textContent = '✏️ Edit Teacher';
+      document.getElementById('teacherSubmitBtn').textContent = 'Update Teacher';
+      document.getElementById('teacherCancelBtn').style.display = '';
+      document.getElementById('teacherForm').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function cancelEditTeacher() {
+      document.getElementById('tEditId').value = '';
+      document.getElementById('teacherForm').reset();
+      document.getElementById('teacherFormTitle').textContent = '➕ Register New Teacher';
+      document.getElementById('teacherSubmitBtn').textContent = 'Register Teacher';
+      document.getElementById('teacherCancelBtn').style.display = 'none';
+    }
 
     async function loadTeachers() {
       const { data } = await db.from('teachers').select('*, classes(name)').eq('is_active', true).order('first_name');
@@ -836,7 +988,7 @@
         <td><span class="badge badge-class">${t.classes?.name || '-'}</span></td>
         <td>${t.phone || '-'}</td>
         <td>${t.email || '-'}</td>
-        <td><button class="btn btn-sm btn-danger" onclick="deleteTeacher('${t.id}')">Remove</button></td>
+        <td><button class="btn btn-sm btn-accent" onclick="editTeacher('${t.id}')">Edit</button> <button class="btn btn-sm btn-danger" onclick="deleteTeacher('${t.id}')">Remove</button></td>
       </tr>`).join('');
     }
 
@@ -907,15 +1059,15 @@
       for (const s of data) {
         const { count } = await db.from('attendance').select('id', { count: 'exact', head: true }).eq('session_id', s.id).eq('present', true);
         const { count: total } = await db.from('attendance').select('id', { count: 'exact', head: true }).eq('session_id', s.id);
-        tbody.innerHTML += `<tr>
+        tbody.innerHTML += `<tr style="cursor:pointer;" onclick="openSessionDetail('${s.id}')">
           <td>${formatDate(s.session_date)}</td>
           <td><span class="badge badge-class">${s.classes?.name || '-'}</span></td>
           <td>${s.teachers ? s.teachers.first_name + ' ' + s.teachers.last_name : '-'}</td>
           <td>${s.topic || '-'}</td>
           <td>${count || 0}/${total || 0}</td>
           <td>
-            <button class="btn btn-sm btn-accent" onclick="openAttendance('${s.id}')">Attendance</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteSession('${s.id}')">Delete</button>
+            <button class="btn btn-sm btn-accent" onclick="event.stopPropagation(); openSessionDetail('${s.id}')">View</button>
+            <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteSession('${s.id}')">Delete</button>
           </td>
         </tr>`;
       }
@@ -974,6 +1126,160 @@
       document.getElementById('attendanceCard').style.display = 'none';
       loadSessions();
       loadDashboard();
+    }
+
+    // ========================
+    // SESSION DETAIL
+    // ========================
+    let currentDetailSessionId = null;
+    let detailAttendanceData = [];
+
+    async function openSessionDetail(sessionId) {
+      currentDetailSessionId = sessionId;
+
+      // Hide all pages, show detail page
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-session-detail').classList.add('active');
+      document.querySelectorAll('#mainNav button').forEach(b => b.classList.remove('active'));
+
+      // Hide edit form, show read view
+      document.getElementById('sessionDetailView').style.display = '';
+      document.getElementById('sessionEditForm').style.display = 'none';
+      document.getElementById('sessionEditBtn').textContent = 'Edit';
+
+      // Load session data
+      const { data: session } = await db.from('sessions')
+        .select('*, teachers(id, first_name, last_name), classes(id, name)')
+        .eq('id', sessionId).single();
+
+      if (!session) { toast('Session not found', true); backToSessions(); return; }
+
+      document.getElementById('sdDate').textContent = formatDate(session.session_date);
+      document.getElementById('sdClass').innerHTML = `<span class="badge badge-class">${session.classes?.name || '-'}</span>`;
+      document.getElementById('sdTeacher').textContent = session.teachers ? session.teachers.first_name + ' ' + session.teachers.last_name : '-';
+      document.getElementById('sdTopic').textContent = session.topic || '-';
+      document.getElementById('sdNotes').textContent = session.notes || '-';
+      document.getElementById('sdEditId').value = session.id;
+
+      // Pre-fill edit form
+      document.getElementById('sdEditDate').value = session.session_date || '';
+      await loadDetailClassOptions();
+      document.getElementById('sdEditClass').value = session.classes?.id || '';
+      await loadDetailTeachers();
+      document.getElementById('sdEditTeacher').value = session.teachers?.id || '';
+      document.getElementById('sdEditTopic').value = session.topic || '';
+      document.getElementById('sdEditNotes').value = session.notes || '';
+
+      // Load attendance
+      const { data: records } = await db.from('attendance')
+        .select('*, learners(first_name, last_name)')
+        .eq('session_id', sessionId);
+
+      detailAttendanceData = records || [];
+      renderDetailAttendance();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function loadDetailClassOptions() {
+      const { data } = await db.from('classes').select('*').order('sort_order');
+      const sel = document.getElementById('sdEditClass');
+      sel.innerHTML = '<option value="">Select...</option>';
+      (data || []).forEach(c => {
+        sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+      });
+    }
+
+    async function loadDetailTeachers() {
+      const classId = document.getElementById('sdEditClass').value;
+      const sel = document.getElementById('sdEditTeacher');
+      sel.innerHTML = '<option value="">Select teacher...</option>';
+      if (!classId) return;
+      const { data } = await db.from('teachers').select('*').eq('class_id', classId).eq('is_active', true);
+      const { data: allT } = await db.from('teachers').select('*').is('class_id', null).eq('is_active', true);
+      const merged = [...(data||[]), ...(allT||[])];
+      merged.forEach(t => {
+        sel.innerHTML += `<option value="${t.id}">${t.first_name} ${t.last_name}</option>`;
+      });
+    }
+
+    function toggleEditSession() {
+      const view = document.getElementById('sessionDetailView');
+      const form = document.getElementById('sessionEditForm');
+      const btn = document.getElementById('sessionEditBtn');
+      if (form.style.display === 'none') {
+        view.style.display = 'none';
+        form.style.display = '';
+        btn.textContent = 'Cancel';
+      } else {
+        view.style.display = '';
+        form.style.display = 'none';
+        btn.textContent = 'Edit';
+      }
+    }
+
+    document.getElementById('sessionEditForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = val('sdEditId');
+      const obj = {
+        session_date: val('sdEditDate'),
+        class_id: val('sdEditClass'),
+        teacher_id: val('sdEditTeacher'),
+        topic: val('sdEditTopic') || null,
+        notes: val('sdEditNotes') || null,
+      };
+      const { error } = await db.from('sessions').update(obj).eq('id', id);
+      if (error) { toast('Error: ' + error.message, true); return; }
+      toast('Session updated!');
+      loadSessions();
+      openSessionDetail(id);
+    });
+
+    function renderDetailAttendance() {
+      const list = document.getElementById('sdAttendanceList');
+      const present = detailAttendanceData.filter(a => a.present).length;
+      const total = detailAttendanceData.length;
+      document.getElementById('sdAttendanceSummary').textContent = `${present}/${total} present`;
+
+      if (total === 0) {
+        list.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><p>No learners in this session</p></div>';
+        return;
+      }
+      list.innerHTML = detailAttendanceData.map((a, i) => `
+        <div class="attendance-item">
+          <span class="name">${a.learners?.first_name || ''} ${a.learners?.last_name || ''}</span>
+          <button class="toggle-btn ${a.present ? 'present' : 'absent'}" onclick="toggleDetailAttendance(${i})"></button>
+        </div>
+      `).join('');
+    }
+
+    function toggleDetailAttendance(index) {
+      detailAttendanceData[index].present = !detailAttendanceData[index].present;
+      renderDetailAttendance();
+    }
+
+    async function saveDetailAttendance() {
+      for (const a of detailAttendanceData) {
+        await db.from('attendance').update({ present: a.present }).eq('id', a.id);
+      }
+      toast('Attendance saved!');
+      loadSessions();
+      loadDashboard();
+    }
+
+    async function deleteSessionFromDetail() {
+      if (!confirm('Delete this session and its attendance records?')) return;
+      await db.from('sessions').delete().eq('id', currentDetailSessionId);
+      toast('Session deleted');
+      backToSessions();
+      loadDashboard();
+    }
+
+    function backToSessions() {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-sessions').classList.add('active');
+      document.querySelectorAll('#mainNav button').forEach(b => b.classList.remove('active'));
+      document.querySelector('#mainNav button[data-page="sessions"]').classList.add('active');
+      loadSessions();
     }
 
     // ========================

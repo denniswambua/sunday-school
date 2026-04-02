@@ -32,7 +32,32 @@ A simple, mobile-friendly web app for managing Sunday School registration, atten
 4. Copy the contents of `supabase-schema.sql` and run it
 5. Go to **Settings** → **API** and copy your **Project URL** and **anon/public key**
 
-### 2. Deploy to GitHub Pages
+### 2. Run Locally
+
+Since the app is a single HTML file with no build step, you can run it locally with any static file server:
+
+**Option A — Python (built-in on macOS/Linux):**
+
+```bash
+cd sunday-school
+python3 -m http.server 8080
+```
+
+Then open [http://localhost:8080](http://localhost:8080) in your browser.
+
+**Option B — Node.js:**
+
+```bash
+npx serve .
+```
+
+**Option C — Just open the file:**
+
+You can also double-click `index.html` to open it directly in your browser — no server required. Everything runs client-side.
+
+Once the page loads, enter your Supabase Project URL and Anon Key in the setup screen and click **Connect & Start**.
+
+### 3. Deploy to GitHub Pages
 
 1. Fork or clone this repository
 2. Go to **Settings** → **Pages** in your GitHub repo
@@ -41,7 +66,7 @@ A simple, mobile-friendly web app for managing Sunday School registration, atten
 5. Click **Save**
 6. Your app will be live at `https://<username>.github.io/sunday-school/`
 
-### 3. Connect the App
+### 4. Connect the App
 
 1. Open your GitHub Pages URL
 2. Enter your Supabase **Project URL** and **Anon Key** in the setup screen
